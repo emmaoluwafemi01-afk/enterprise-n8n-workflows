@@ -24,10 +24,3 @@ A collection of production-grade, scalable n8n workflows designed to eliminate m
 * **Self-Hosted Infrastructure:** Designed to run reliably on Docker-deployed n8n instances with high availability and strict data privacy compliance.
 
 ---
-
-## 📥 How to Import & Test These Workflows
-1. Download any `.json` file from the `workflows/` directory.
-2. Open your self-hosted or cloud n8n dashboard.
-3. Click **"Add workflow"** -> **"Import from File"** and upload the JSON.
-4. Reconnect your respective credentials (OpenAI API key, Slack token, etc.).# enterprise-n8n-workflows
-Production-ready n8n automation workflows featuring LLM agents, vector RAG, and multi-SaaS webhook integrations.
