@@ -1,0 +1,172 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 1. Chat Trigger\nThis node starts the workflow whenever a new user message is received (via chat interface or API trigger).",
+        "height": 140,
+        "color": 6
+      },
+      "id": "aeb6cf53-6fee-4ddf-be68-21504f1dd67b",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. AI Agent Core\nExecutes the reasoning loop. Uses system prompt, handles tool calls, and orchestrates connected memory & language models.",
+        "height": 140,
+        "width": 260,
+        "color": 4
+      },
+      "id": "d302fdfc-267b-4893-b7c9-28998cc642fd",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        304,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Language Model (LLM)\nProvides the intelligence engine (OpenAI GPT-4o-mini). Connected to the Agent via Model port.",
+        "height": 140,
+        "color": 2
+      },
+      "id": "a0e25b9a-1710-4213-987c-e050a394b38e",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Conversation Memory\nRemembers prior user messages across turns (Window Buffer) so the agent maintains full conversation context.",
+        "height": 140,
+        "color": 5
+      },
+      "id": "bff40908-a034-44b7-9094-3d48ee04a6fa",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        464,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "54f73879-6136-4144-80c1-608ba42de2fa",
+      "name": "When Chat Message Received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        192
+      ],
+      "webhookId": "bd93f687-a8ab-47e2-b76b-dbe63dbc55be"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helpful, precise AI assistant. Answer user questions clearly and concisely. Use tools when complex calculations are required."
+        }
+      },
+      "id": "2f69db2d-b8f5-457f-b647-67b623f3d99e",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        304,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "1ba5d843-ebcb-4c71-8a62-df789bf4743e",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "Gateway credits",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "997b7c52-a946-458c-872e-1523f1d88b03",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        240
+      ]
+    }
+  ],
+  "connections": {
+    "When Chat Message Received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "14ff241972d19928d9bf4d8881a4315a864fdf7054624411fd544e6948ba4750"
+  }
+}
