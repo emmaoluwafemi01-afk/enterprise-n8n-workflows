@@ -1,0 +1,246 @@
+{
+  "name": "AI Document Ingestion, Embedding & Underwriting Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingest-financial-doc",
+        "options": {}
+      },
+      "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      "name": "Webhook: Inbound Document",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Production Data Preprocessing & Chunking\nconst rawData = $input.first().json.body;\nconst rawText = rawData.document_text || \"\";\n\n// Basic text cleaning & normalization\nconst cleanedText = rawText.replace(/\\s+/g, ' ').trim();\n\n// Chunking logic (500 chars per chunk with 50 char overlap)\nconst chunkSize = 500;\nconst overlap = 50;\nconst chunks = [];\n\nfor (let i = 0; i < cleanedText.length; i += (chunkSize - overlap)) {\n  chunks.push({\n    chunk_id: chunks.length + 1,\n    text: cleanedText.substring(i, i + chunkSize),\n    applicant_id: rawData.applicant_id || \"UNKNOWN_APP\"\n  });\n}\n\nreturn chunks.map(chunk => ({ json: chunk }));"
+      },
+      "id": "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
+      "name": "Code Node: Text Ingestion & Chunking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "text-embedding-3-small"
+            },
+            {
+              "name": "input",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
+      "name": "HTTP Request: Generate Vector Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_REDRAFTED_ANTHROPIC_KEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-3-5-sonnet-20241022\",\n  \"max_tokens\": 1000,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are an automated commercial credit underwriting AI. Analyze the following document text chunk and assess financial risk. Output JSON with fields: risk_score (1-100), risk_level ('LOW', 'MEDIUM', 'HIGH'), summary, and flagged_concerns.\\n\\nDocument Chunk:\\n{{ $node['Code Node: Text Ingestion & Chunking'].json.text }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a",
+      "name": "Claude Sonnet: Underwriting Assessment Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "a1b2c3d4",
+              "leftValue": "={{ JSON.parse($json.content[0].text).risk_level }}",
+              "rightValue": "HIGH",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
+      "name": "IF: High Risk Flagged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🚨 *High-Risk Credit Alert*\\n*Applicant ID:* {{ $node['Code Node: Text Ingestion & Chunking'].json.applicant_id }}\\n*Risk Level:* HIGH\\n*Assessment Summary:* {{ JSON.parse($json.content[0].text).summary }}\\n*Flagged Concerns:* {{ JSON.parse($json.content[0].text).flagged_concerns.join(', ') }}\"\n}",
+        "options": {}
+      },
+      "id": "6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c",
+      "name": "Slack: Alert Risk Team",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1360,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.yourdomain.com/v1/credit-memos",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"applicant_id\": \"{{ $node['Code Node: Text Ingestion & Chunking'].json.applicant_id }}\",\n  \"status\": \"APPROVED_AUTOMATICALLY\",\n  \"assessment\": {{ $json.content[0].text }}\n}",
+        "options": {}
+      },
+      "id": "7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d",
+      "name": "PostgreSQL API: Save Standard Assessment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1360,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Inbound Document": {
+      "main": [
+        [
+          {
+            "node": "Code Node: Text Ingestion & Chunking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Node: Text Ingestion & Chunking": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request: Generate Vector Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request: Generate Vector Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Claude Sonnet: Underwriting Assessment Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet: Underwriting Assessment Agent": {
+      "main": [
+        [
+          {
+            "node": "IF: High Risk Flagged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: High Risk Flagged?": {
+      "main": [
+        [
+          {
+            "node": "Slack: Alert Risk Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PostgreSQL API: Save Standard Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
